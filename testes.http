@@ -1,0 +1,107 @@
+### Configuração de Variáveis Globais
+@baseUrl = http://localhost:3001/api/v1
+@username = admin
+@password = admin123
+
+### 1. Efetuar Login
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "username": "{{username}}",
+  "password": "{{password}}"
+}
+
+### Armazena o Token
+@authToken = {{login.response.body.data.token}}
+
+### [NOVO] 1.5 Criar o Depósito Padrão Oficialmente no Banco
+POST {{baseUrl}}/locations
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "name": "Depósito Padrão",
+  "type": "deposito"
+}
+
+### 2. Buscar Produto Real da Cassol
+GET {{baseUrl}}/products/1869033
+Authorization: Bearer {{authToken}}
+
+### 4. Mover 1 Aquecedor da Gôndola (ID 1) para o Depósito Padrão (ID 2)
+POST {{baseUrl}}/movements
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "product_id": 1,
+  "origin_location_id": 1,
+  "destination_location_id": 2,
+  "quantity": 1
+}
+
+### ====================================================================
+### MÓDULO 2.4: TESTES DE INVENTÁRIO AVANÇADO (COM THRESHOLD E BLIND)
+### ====================================================================
+
+### 5. Criar uma Sessão Cega (blind_count: true)
+# @name createSessionAdvanced
+POST {{baseUrl}}/inventory/sessions
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "title": "Auditoria Cega - Banho e Cozinha",
+  "category": "BANHO E COZINHA",
+  "blind_count": true
+}
+
+### Captura o ID da nova sessão
+@advancedSessionId = {{createSessionAdvanced.response.body.data.id}}
+
+
+### 6. Registrar Contagem com Divergência Absurda (Sistema tem 2, operador conta 50)
+### Como a sessão é cega, o retorno NÃO deve te mostrar o "expected_quantity"
+POST {{baseUrl}}/inventory/count
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "session_id": {{advancedSessionId}},
+  "product_id": 1,
+  "location_id": 1,
+  "counted_quantity": 50
+}
+
+
+### 7A. Tentar Fechar Sessão SEM Justificativa (Deve dar ERRO 422 - Rejeitado)
+POST {{baseUrl}}/inventory/sessions/{{advancedSessionId}}/close
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{}
+
+
+### 7B. Fechar Sessão FORÇADO pelo ADMIN (Com justificativa -> Deve dar 200 OK)
+POST {{baseUrl}}/inventory/sessions/{{advancedSessionId}}/close
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "justification": "Contagem confirmada fisicamente, palete extra encontrado no fundo."
+}
+
+### ====================================================================
+### MÓDULO 2.5: TESTES DE RELATÓRIOS E DASHBOARD (EXCLUSIVO ADMIN)
+### ====================================================================
+
+### 8. Puxar KPIs do Dashboard do Gerente
+GET {{baseUrl}}/reports/dashboard
+Authorization: Bearer {{authToken}}
+
+
+### 9. Listar Relatório de Divergências de Estoque (De maior impacto para o menor)
+GET {{baseUrl}}/reports/divergences?page=1&limit=20
+Authorization: Bearer {{authToken}}
