@@ -1,0 +1,14 @@
+node_modules/
+dist/
+build/
+.env
+.env.local
+*.db
+*.db-journal
+backend/data/
+frontend/.vite/
+coverage/
+*.log
+*.sqlite
+uploads/
+.claude/
